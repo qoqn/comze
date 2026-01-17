@@ -1,0 +1,29 @@
+root = true
+
+# Global settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# TypeScript and JavaScript specific
+[*.{ts,tsx,js,jsx}]
+# Helps with long function signatures common in TS
+max_line_length = 100
+# Ensure VS Code/WebStorm use single quotes by default
+quote_type = single
+
+# Specific settings for configuration files
+[*.{json,yaml,yml}]
+indent_size = 2
+
+# Markdown often requires trailing spaces for line breaks
+[*.md]
+trim_trailing_whitespace = false
+
+# Shell scripts usually prefer tabs
+[*.sh]
+indent_style = tab

@@ -12,7 +12,7 @@ import { formatAge, getAgeMonths } from "./utils/time";
 import { renderHeader, renderTable, renderFooter } from "./ui/render";
 import { selectPackages } from "./interactive";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 export async function run(options: CLIOptions): Promise<void> {
   renderHeader(VERSION);

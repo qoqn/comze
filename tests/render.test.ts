@@ -151,7 +151,7 @@ describe("renderTable", () => {
 
 describe("renderHeader", () => {
   test("renders without error", () => {
-    expect(() => renderHeader("0.1.0")).not.toThrow();
+    expect(() => renderHeader("0.2.0")).not.toThrow();
   });
 });
 

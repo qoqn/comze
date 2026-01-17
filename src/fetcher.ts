@@ -1,9 +1,9 @@
-import semver from "semver";
-import type { PackagistVersion, Stability } from "./types";
-import { STABILITY_ORDER } from "./types";
-import { getVersionStability, normalizeVersion } from "./utils/version";
+import semver from 'semver';
+import type { PackagistVersion, Stability } from './types';
+import { STABILITY_ORDER } from './types';
+import { getVersionStability, normalizeVersion } from './utils/version';
 
-const PACKAGIST_API = "https://repo.packagist.org/p2";
+const PACKAGIST_API = 'https://repo.packagist.org/p2';
 
 export interface FetchResult {
   latestVersion: string;
@@ -21,7 +21,7 @@ export interface FetchResult {
  */
 export async function fetchPackage(
   packageName: string,
-  minStability: Stability = "stable",
+  minStability: Stability = 'stable',
   preferStable: boolean = true,
   currentVersion?: string,
   allowMajor: boolean = true,
@@ -57,7 +57,7 @@ export async function fetchPackage(
 
     if (preferStable) {
       const stableVersions = eligibleVersions.filter(
-        (v) => getVersionStability(v.version) === "stable",
+        (v) => getVersionStability(v.version) === 'stable',
       );
       if (stableVersions.length > 0) {
         selectedVersion = stableVersions[0] ?? null;
@@ -86,9 +86,7 @@ export async function fetchPackage(
 
           if (!allowMajor) {
             const versionsToCheck = preferStable
-              ? eligibleVersions.filter(
-                  (v) => getVersionStability(v.version) === "stable",
-                )
+              ? eligibleVersions.filter((v) => getVersionStability(v.version) === 'stable')
               : eligibleVersions;
 
             const sameMajorVersion = versionsToCheck.find((v) => {
@@ -124,7 +122,7 @@ export async function fetchPackage(
  */
 export async function fetchAllPackages(
   packages: Record<string, string>,
-  minStability: Stability = "stable",
+  minStability: Stability = 'stable',
   preferStable: boolean = true,
   allowMajor: boolean = true,
 ): Promise<Map<string, FetchResult>> {
@@ -135,13 +133,7 @@ export async function fetchAllPackages(
   for (let i = 0; i < entries.length; i += CONCURRENCY) {
     const batch = entries.slice(i, i + CONCURRENCY);
     const promises = batch.map(async ([name, version]) => {
-      const result = await fetchPackage(
-        name,
-        minStability,
-        preferStable,
-        version,
-        allowMajor,
-      );
+      const result = await fetchPackage(name, minStability, preferStable, version, allowMajor);
       if (result) results.set(name, result);
     });
     await Promise.all(promises);
