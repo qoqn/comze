@@ -16,7 +16,7 @@
   "main": "./dist/cli.mjs",
   "module": "./dist/cli.mjs",
   "bin": {
-    "comze": "./bin/comze.mjs"
+    "comze": "bin/comze.mjs"
   },
   "files": [
     "dist",
@@ -33,7 +33,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/qoqn/comze.git"
+    "url": "git+https://github.com/qoqn/comze.git"
   },
   "devDependencies": {
     "@types/bun": "latest",
