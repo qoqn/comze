@@ -1,6 +1,6 @@
 {
   "name": "comze",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A taze-like CLI for updating composer.json dependencies",
   "author": "qoqn",
   "license": "MIT",

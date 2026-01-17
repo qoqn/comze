@@ -30,3 +30,17 @@ export function formatAge(isoDate: string): string {
 
     return 'now';
 }
+
+/**
+ * Calculates the number of months since a given ISO date.
+ * 
+ * @param isoDate - ISO 8601 date string
+ * @returns Number of months (floored)
+ */
+export function getAgeMonths(isoDate: string): number {
+    const date = new Date(isoDate);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const msPerMonth = 30 * 24 * 60 * 60 * 1000;
+    return Math.floor(diffMs / msPerMonth);
+}

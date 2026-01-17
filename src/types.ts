@@ -8,6 +8,9 @@ export interface PackageInfo {
   diffType: 'major' | 'minor' | 'patch';
   releaseTime: string;
   age: string;
+  ageMonths: number;
+  majorAvailable?: string;
+  phpRequirement?: string;
 }
 
 /**
@@ -48,6 +51,7 @@ export interface PackagistVersion {
   version: string;
   version_normalized: string;
   time: string;
+  require?: Record<string, string>;
 }
 
 /**

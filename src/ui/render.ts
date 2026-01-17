@@ -2,6 +2,19 @@ import pc from 'picocolors';
 import type { PackageInfo } from '../types';
 
 /**
+ * Colors the age based on how old the release is.
+ */
+function colorAge(age: string, ageMonths: number): string {
+    if (ageMonths < 3) {
+        return pc.green(age.padStart(6));
+    } else if (ageMonths < 12) {
+        return pc.yellow(age.padStart(6));
+    } else {
+        return pc.red(age.padStart(6));
+    }
+}
+
+/**
  * Renders the package update table to stdout.
  */
 export function renderTable(packages: PackageInfo[]): void {
@@ -21,7 +34,7 @@ export function renderTable(packages: PackageInfo[]): void {
         const oldVer = pkg.currentVersion.padStart(oldWidth);
         const arrow = '→';
         const newVer = pkg.latestVersion.padEnd(newWidth);
-        const age = pc.gray(pkg.age.padStart(6));
+        const age = colorAge(pkg.age, pkg.ageMonths);
 
         let diffLabel: string;
         let coloredNewVer: string;
@@ -41,24 +54,28 @@ export function renderTable(packages: PackageInfo[]): void {
                 break;
         }
 
-        console.log(`  ${name}  ${oldVer}  ${arrow}  ${coloredNewVer}  ${diffLabel}  ${age}`);
+        let extra = '';
+        if (pkg.majorAvailable) {
+            extra += pc.magenta(`  ${pkg.majorAvailable} available`);
+        }
+        if (pkg.phpRequirement) {
+            extra += pc.gray(`  php ${pkg.phpRequirement}`);
+        }
+
+        console.log(`  ${name}  ${oldVer}  ${arrow}  ${coloredNewVer}  ${diffLabel}  ${age}${extra}`);
     }
 
     console.log('');
 }
 
-/**
- * Renders the CLI header banner.
- */
+
 export function renderHeader(version: string): void {
     console.log('');
     console.log(pc.bold(`  comze v${version}`), pc.gray(' —  Check for updates for composer.json'));
     console.log('');
 }
 
-/**
- * Renders usage hints in the footer.
- */
+
 export function renderFooter(hasUpdates: boolean): void {
     if (hasUpdates) {
         console.log(pc.gray('  Run "comze -w" to write to composer.json'));
@@ -67,9 +84,7 @@ export function renderFooter(hasUpdates: boolean): void {
     }
 }
 
-/**
- * Formats a package for interactive selection display.
- */
+
 export function formatPackageChoice(pkg: PackageInfo): string {
     const arrow = '→';
     let diffLabel: string;
@@ -90,5 +105,14 @@ export function formatPackageChoice(pkg: PackageInfo): string {
             break;
     }
 
-    return `${pc.bold(pkg.name)} ${pkg.currentVersion} ${arrow} ${coloredNewVer} ${diffLabel} ${pc.gray(pkg.age)}`;
+    const age = colorAge(pkg.age, pkg.ageMonths);
+    let extra = '';
+    if (pkg.majorAvailable) {
+        extra += pc.magenta(` ${pkg.majorAvailable} available`);
+    }
+    if (pkg.phpRequirement) {
+        extra += pc.gray(` php ${pkg.phpRequirement}`);
+    }
+
+    return `${pc.bold(pkg.name)} ${pkg.currentVersion} ${arrow} ${coloredNewVer} ${diffLabel} ${age}${extra}`;
 }
