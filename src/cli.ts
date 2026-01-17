@@ -17,7 +17,8 @@ cli
   .option('--exclude <packages>', 'Exclude packages (comma-separated)', {
     default: '',
   })
-  .option('--dry-run', 'Run without making changes', { default: false });
+  .option('--dry-run', 'Run without making changes', { default: false })
+  .option('--no-cache', 'Bypass cache and force fetch from network', { default: false });
 
 cli.help();
 cli.version(pkg.version);
@@ -32,6 +33,7 @@ cli.command('', 'Check for updates in composer.json').action(async (cliOptions) 
     patch: cliOptions.patch,
     exclude: cliOptions.exclude ? cliOptions.exclude.split(',').map((s: string) => s.trim()) : [],
     dryRun: cliOptions.dryRun,
+    noCache: cliOptions.noCache,
   };
 
   await run(options);

@@ -1,5 +1,5 @@
 import pc from 'picocolors';
-import type { PackageInfo } from '../types';
+import type { PackageInfo, DeprecatedPackage } from '../types';
 
 /**
  * Colors the age based on how old the release is.
@@ -61,6 +61,12 @@ export function renderTable(packages: PackageInfo[]): void {
     if (pkg.phpRequirement) {
       extra += pc.gray(`  php ${pkg.phpRequirement}`);
     }
+    if (pkg.deprecated) {
+      extra += pc.red('  deprecated');
+      if (pkg.replacement) {
+        extra += pc.yellow(` → ${pkg.replacement}`);
+      }
+    }
 
     console.log(`  ${name}  ${oldVer}  ${arrow}  ${coloredNewVer}  ${diffLabel}  ${age}${extra}`);
   }
@@ -110,6 +116,27 @@ export function formatPackageChoice(pkg: PackageInfo): string {
   if (pkg.phpRequirement) {
     extra += pc.gray(` php ${pkg.phpRequirement}`);
   }
+  if (pkg.deprecated) {
+    extra += pc.red(' deprecated');
+    if (pkg.replacement) {
+      extra += pc.yellow(` → ${pkg.replacement}`);
+    }
+  }
 
   return `${pc.bold(pkg.name)} ${pkg.currentVersion} ${arrow} ${coloredNewVer} ${diffLabel} ${age}${extra}`;
+}
+
+export function renderDeprecated(packages: DeprecatedPackage[]): void {
+  if (packages.length === 0) return;
+
+  console.log(pc.yellow('  Deprecated packages detected:'));
+
+  for (const pkg of packages) {
+    const replacement = pkg.replacement ? pc.yellow(` → ${pkg.replacement}`) : '';
+    console.log(
+      `  ${pc.red('!')} ${pc.bold(pkg.name)} ${pc.gray(pkg.currentVersion)}${replacement}`,
+    );
+  }
+
+  console.log('');
 }

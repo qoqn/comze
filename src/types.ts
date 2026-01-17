@@ -11,6 +11,17 @@ export interface PackageInfo {
   ageMonths: number;
   majorAvailable?: string;
   phpRequirement?: string;
+  deprecated?: boolean;
+  replacement?: string;
+}
+
+/**
+ * Deprecated package info displayed in warnings
+ */
+export interface DeprecatedPackage {
+  name: string;
+  currentVersion: string;
+  replacement?: string;
 }
 
 /**
@@ -25,6 +36,7 @@ export interface CLIOptions {
   patch: boolean;
   exclude: string[];
   dryRun: boolean;
+  noCache: boolean;
 }
 
 /**

@@ -1,11 +1,11 @@
 import { resolve } from 'path';
 import pc from 'picocolors';
-import type { PackageInfo, CLIOptions, Stability } from './types';
+import type { PackageInfo, CLIOptions, Stability, DeprecatedPackage } from './types';
 import { fetchAllPackages } from './fetcher';
 import { readComposerJson, writeComposerJson, runComposerUpdate } from './writer';
 import { getDiffType } from './utils/version';
 import { formatAge, getAgeMonths } from './utils/time';
-import { renderHeader, renderTable, renderFooter } from './ui/render';
+import { renderHeader, renderTable, renderFooter, renderDeprecated } from './ui/render';
 import { selectPackages } from './interactive';
 import pkg from '../package.json';
 
@@ -43,13 +43,23 @@ export async function run(options: CLIOptions): Promise<void> {
     minStability,
     preferStable,
     options.major,
+    options.noCache,
   );
 
   const updates: PackageInfo[] = [];
+  const deprecatedPackages: DeprecatedPackage[] = [];
 
   for (const [name, currentVersion] of Object.entries(filteredPackages)) {
     const result = results.get(name);
     if (!result) continue;
+
+    if (result.deprecated) {
+      deprecatedPackages.push({
+        name,
+        currentVersion,
+        replacement: result.replacement,
+      });
+    }
 
     const diffType = getDiffType(currentVersion, result.latestVersion);
     if (!diffType) continue;
@@ -70,6 +80,8 @@ export async function run(options: CLIOptions): Promise<void> {
       ageMonths: getAgeMonths(result.releaseTime),
       majorAvailable,
       phpRequirement: result.phpRequirement,
+      deprecated: result.deprecated,
+      replacement: result.replacement,
     });
   }
 
@@ -77,6 +89,7 @@ export async function run(options: CLIOptions): Promise<void> {
   updates.sort((a, b) => order[a.diffType] - order[b.diffType]);
 
   renderTable(updates);
+  renderDeprecated(deprecatedPackages);
 
   if (updates.length === 0) return;
 

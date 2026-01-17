@@ -1,6 +1,12 @@
-import { describe, test, expect } from 'bun:test';
-import { renderTable, renderHeader, renderFooter, formatPackageChoice } from '../src/ui/render';
-import type { PackageInfo } from '../src/types';
+import { describe, test, expect, spyOn } from 'bun:test';
+import {
+  renderTable,
+  renderHeader,
+  renderFooter,
+  formatPackageChoice,
+  renderDeprecated,
+} from '../src/ui/render';
+import type { PackageInfo, DeprecatedPackage } from '../src/types';
 
 describe('formatPackageChoice', () => {
   test('formats major update correctly', () => {
@@ -91,6 +97,23 @@ describe('formatPackageChoice', () => {
     const result = formatPackageChoice(pkg);
     expect(result).toContain('php >=8.1');
   });
+
+  test('includes deprecated info', () => {
+    const pkg: PackageInfo = {
+      name: 'vendor/package',
+      currentVersion: '^1.0',
+      latestVersion: '1.5.0',
+      diffType: 'minor',
+      releaseTime: new Date().toISOString(),
+      age: '1 mo',
+      ageMonths: 1,
+      deprecated: true,
+      replacement: 'vendor/new-package',
+    };
+    const result = formatPackageChoice(pkg);
+    expect(result).toContain('deprecated');
+    expect(result).toContain('vendor/new-package');
+  });
 });
 
 describe('renderTable', () => {
@@ -142,6 +165,23 @@ describe('renderTable', () => {
     ];
     expect(() => renderTable(packages)).not.toThrow();
   });
+
+  test('renders deprecated package with replacement', () => {
+    const packages: PackageInfo[] = [
+      {
+        name: 'vendor/package',
+        currentVersion: '^1.0.0',
+        latestVersion: '1.0.5',
+        diffType: 'patch',
+        releaseTime: new Date().toISOString(),
+        age: '3 mo',
+        ageMonths: 3,
+        deprecated: true,
+        replacement: 'vendor/new-package',
+      },
+    ];
+    expect(() => renderTable(packages)).not.toThrow();
+  });
 });
 
 import pkg from '../package.json';
@@ -159,5 +199,32 @@ describe('renderFooter', () => {
 
   test('renders without updates', () => {
     expect(() => renderFooter(false)).not.toThrow();
+  });
+});
+
+describe('renderDeprecated', () => {
+  test('renders deprecated packages with replacement', () => {
+    const logs: string[] = [];
+    const spy = spyOn(console, 'log').mockImplementation((message?: string) => {
+      if (typeof message === 'string') logs.push(message);
+    });
+
+    const packages: DeprecatedPackage[] = [
+      { name: 'vendor/old-package', currentVersion: '^1.0', replacement: 'vendor/new-package' },
+    ];
+
+    renderDeprecated(packages);
+
+    expect(logs.join('\n')).toContain('vendor/old-package');
+    expect(logs.join('\n')).toContain('vendor/new-package');
+
+    spy.mockRestore();
+  });
+
+  test('does nothing when list is empty', () => {
+    const spy = spyOn(console, 'log');
+    renderDeprecated([]);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

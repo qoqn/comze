@@ -1,5 +1,23 @@
 import { describe, test, expect, mock, afterEach } from 'bun:test';
+import type { Stability } from '../src/types';
 import { fetchPackage, fetchAllPackages } from '../src/fetcher';
+
+const NO_CACHE = true;
+
+const fetchPackageNoCache = (
+  packageName: string,
+  minStability: Stability = 'stable',
+  preferStable: boolean = true,
+  currentVersion?: string,
+  allowMajor: boolean = true,
+) => fetchPackage(packageName, minStability, preferStable, currentVersion, allowMajor, NO_CACHE);
+
+const fetchAllPackagesNoCache = (
+  packages: Record<string, string>,
+  minStability: Stability = 'stable',
+  preferStable: boolean = true,
+  allowMajor: boolean = true,
+) => fetchAllPackages(packages, minStability, preferStable, allowMajor, NO_CACHE);
 
 describe('fetchPackage', () => {
   const originalFetch = globalThis.fetch;
@@ -34,7 +52,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package');
+    const result = await fetchPackageNoCache('vendor/package');
     expect(result).not.toBeNull();
     expect(result?.latestVersion).toBe('2.0.0');
     expect(result?.releaseTime).toBe('2024-01-01T12:00:00+00:00');
@@ -49,7 +67,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('nonexistent/package');
+    const result = await fetchPackageNoCache('nonexistent/package');
     expect(result).toBeNull();
   });
 
@@ -62,7 +80,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package');
+    const result = await fetchPackageNoCache('vendor/package');
     expect(result).toBeNull();
   });
 
@@ -97,7 +115,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package');
+    const result = await fetchPackageNoCache('vendor/package');
     expect(result?.latestVersion).toBe('1.5.0');
   });
 
@@ -127,7 +145,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package');
+    const result = await fetchPackageNoCache('vendor/package');
     expect(result?.latestVersion).toBe('dev-main');
   });
 
@@ -135,7 +153,7 @@ describe('fetchPackage', () => {
     // @ts-expect-error - mocking fetch
     globalThis.fetch = mock(() => Promise.reject(new Error('Network error')));
 
-    const result = await fetchPackage('vendor/package');
+    const result = await fetchPackageNoCache('vendor/package');
     expect(result).toBeNull();
   });
 
@@ -148,7 +166,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package');
+    const result = await fetchPackageNoCache('vendor/package');
     expect(result).toBeNull();
   });
 
@@ -178,7 +196,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package', 'beta', false);
+    const result = await fetchPackageNoCache('vendor/package', 'beta', false);
     expect(result?.latestVersion).toBe('2.0.0-beta');
   });
   test('parses PHP requirement from package', async () => {
@@ -203,7 +221,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package');
+    const result = await fetchPackageNoCache('vendor/package');
     expect(result?.phpRequirement).toBe('>=8.1');
   });
 
@@ -233,7 +251,7 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package', 'stable', true, '1.0.0', false);
+    const result = await fetchPackageNoCache('vendor/package', 'stable', true, '1.0.0', false);
     expect(result?.latestVersion).toBe('1.5.0');
     expect(result?.majorVersion).toBe('2.0.0');
   });
@@ -259,9 +277,160 @@ describe('fetchPackage', () => {
       }),
     );
 
-    const result = await fetchPackage('vendor/package', 'stable', true, '^2.0.0');
+    const result = await fetchPackageNoCache('vendor/package', 'stable', true, '^2.0.0');
     expect(result?.latestVersion).toBe('2.5.0');
     expect(result?.majorVersion).toBeUndefined();
+  });
+
+  test('detects deprecated package and replacement', async () => {
+    // @ts-expect-error - mocking fetch
+    globalThis.fetch = mock((url: string) => {
+      if (url.startsWith('https://packagist.org/packages/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ package: { abandoned: 'vendor/new-package' } }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            packages: {
+              'vendor/package': [
+                {
+                  version: '1.5.0',
+                  version_normalized: '1.5.0.0',
+                  time: '2024-01-01T12:00:00+00:00',
+                },
+              ],
+            },
+          }),
+      });
+    });
+
+    const result = await fetchPackageNoCache('vendor/package');
+    expect(result?.deprecated).toBe(true);
+    expect(result?.replacement).toBe('vendor/new-package');
+  });
+
+  test('detects deprecated package without replacement', async () => {
+    // @ts-expect-error - mocking fetch
+    globalThis.fetch = mock((url: string) => {
+      if (url.startsWith('https://packagist.org/packages/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ package: { abandoned: true } }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            packages: {
+              'vendor/package': [
+                {
+                  version: '1.5.0',
+                  version_normalized: '1.5.0.0',
+                  time: '2024-01-01T12:00:00+00:00',
+                },
+              ],
+            },
+          }),
+      });
+    });
+
+    const result = await fetchPackageNoCache('vendor/package');
+    expect(result?.deprecated).toBe(true);
+    expect(result?.replacement).toBeUndefined();
+  });
+
+  test('handles deprecated metadata fetch not ok', async () => {
+    // @ts-expect-error - mocking fetch
+    globalThis.fetch = mock((url: string) => {
+      if (url.startsWith('https://packagist.org/packages/')) {
+        return Promise.resolve({ ok: false, status: 500 });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            packages: {
+              'vendor/package': [
+                {
+                  version: '1.5.0',
+                  version_normalized: '1.5.0.0',
+                  time: '2024-01-01T12:00:00+00:00',
+                },
+              ],
+            },
+          }),
+      });
+    });
+
+    const result = await fetchPackageNoCache('vendor/package');
+    expect(result?.deprecated).toBeUndefined();
+  });
+
+  test('handles deprecated metadata without abandoned field', async () => {
+    // @ts-expect-error - mocking fetch
+    globalThis.fetch = mock((url: string) => {
+      if (url.startsWith('https://packagist.org/packages/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ package: {} }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            packages: {
+              'vendor/package': [
+                {
+                  version: '1.5.0',
+                  version_normalized: '1.5.0.0',
+                  time: '2024-01-01T12:00:00+00:00',
+                },
+              ],
+            },
+          }),
+      });
+    });
+
+    const result = await fetchPackageNoCache('vendor/package');
+    expect(result?.deprecated).toBeUndefined();
+  });
+
+  test('handles deprecated metadata fetch error', async () => {
+    // @ts-expect-error - mocking fetch
+    globalThis.fetch = mock((url: string) => {
+      if (url.startsWith('https://packagist.org/packages/')) {
+        return Promise.reject(new Error('Network error'));
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            packages: {
+              'vendor/package': [
+                {
+                  version: '1.5.0',
+                  version_normalized: '1.5.0.0',
+                  time: '2024-01-01T12:00:00+00:00',
+                },
+              ],
+            },
+          }),
+      });
+    });
+
+    const result = await fetchPackageNoCache('vendor/package');
+    expect(result?.deprecated).toBeUndefined();
   });
 });
 
@@ -298,7 +467,7 @@ describe('fetchAllPackages', () => {
       'vendor/package2': '^2.0',
     };
 
-    const results = await fetchAllPackages(packages);
+    const results = await fetchAllPackagesNoCache(packages);
     expect(results.size).toBe(2);
     expect(results.has('vendor/package1')).toBe(true);
     expect(results.has('vendor/package2')).toBe(true);
@@ -334,13 +503,13 @@ describe('fetchAllPackages', () => {
       'vendor/package2': '^2.0',
     };
 
-    const results = await fetchAllPackages(packages);
+    const results = await fetchAllPackagesNoCache(packages);
     expect(results.size).toBe(1);
     expect(results.has('vendor/package2')).toBe(true);
   });
 
   test('returns empty map for empty input', async () => {
-    const results = await fetchAllPackages({});
+    const results = await fetchAllPackagesNoCache({});
     expect(results.size).toBe(0);
   });
 });

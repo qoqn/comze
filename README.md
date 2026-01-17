@@ -10,6 +10,7 @@ A [taze](https://github.com/antfu/taze)-like CLI for updating `composer.json` de
 - 🎯 Respects `minimum-stability` and `prefer-stable`
 - 🚫 Major updates hidden by default
 - ✍️ Interactive selection mode
+- ⚠️ Detects deprecated packages
 
 ## Installation
 
@@ -50,16 +51,16 @@ comze --exclude vendor/package
 
 ## Options
 
-| Flag | Description |
-|------|-------------|
-| `-w, --write` | Write changes to `composer.json` |
-| `-i, --install` | Write changes and run `composer update` |
-| `-I, --interactive` | Select updates manually |
-| `--major` | Include major updates (default: false) |
-| `--minor` | Include minor updates (default: true) |
-| `--patch` | Include patch updates (default: true) |
-| `--exclude <pkgs>` | Exclude packages (comma-separated) |
-| `--dry-run` | Preview changes without writing |
+| Flag                | Description                             |
+| ------------------- | --------------------------------------- |
+| `-w, --write`       | Write changes to `composer.json`        |
+| `-i, --install`     | Write changes and run `composer update` |
+| `-I, --interactive` | Select updates manually                 |
+| `--major`           | Include major updates (default: false)  |
+| `--minor`           | Include minor updates (default: true)   |
+| `--patch`           | Include patch updates (default: true)   |
+| `--exclude <pkgs>`  | Exclude packages (comma-separated)      |
+| `--dry-run`         | Preview changes without writing         |
 
 ## Composer Stability
 
@@ -76,15 +77,15 @@ comze reads `minimum-stability` and `prefer-stable` from your `composer.json`:
 
 All Composer version constraints are supported:
 
-| Type | Example |
-|------|---------|
-| Exact | `1.0.2` |
-| Caret | `^1.2.3` |
-| Tilde | `~1.2` |
-| Wildcard | `1.0.*` |
-| Range | `>=1.0 <2.0` |
-| Hyphenated | `1.0 - 2.0` |
-| Dev | `dev-main`, `1.x-dev` |
+| Type       | Example               |
+| ---------- | --------------------- |
+| Exact      | `1.0.2`               |
+| Caret      | `^1.2.3`              |
+| Tilde      | `~1.2`                |
+| Wildcard   | `1.0.*`               |
+| Range      | `>=1.0 <2.0`          |
+| Hyphenated | `1.0 - 2.0`           |
+| Dev        | `dev-main`, `1.x-dev` |
 
 ## Development
 
