@@ -1,0 +1,25 @@
+# Source files (dist is published)
+src/
+tests/
+
+# Config files
+tsconfig.json
+bun.lock
+*.log
+
+# Test output
+coverage/
+.test-tmp/
+.integration-tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Misc
+PLAN.md
+composer.json

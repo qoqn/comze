@@ -1,0 +1,8 @@
+{
+    "minimum-stability": "beta",
+    "prefer-stable": false,
+    "require": {
+        "php": "^8.1",
+        "symfony/console": "^6.0"
+    }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "comze",
+  "version": "0.1.0",
+  "description": "A taze-like CLI for updating composer.json dependencies",
+  "author": "qoqn",
+  "license": "MIT",
+  "keywords": [
+    "composer",
+    "php",
+    "dependencies",
+    "update",
+    "cli",
+    "taze"
+  ],
+  "type": "module",
+  "main": "./dist/cli.mjs",
+  "module": "./dist/cli.mjs",
+  "bin": {
+    "comze": "./bin/comze.mjs"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "dev": "bun run src/cli.ts",
+    "build": "bun build src/cli.ts --outfile dist/cli.mjs --target node",
+    "prepublishOnly": "bun run build",
+    "test": "bun test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qoqn/comze.git"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/prompts": "^2.4.9",
+    "@types/semver": "^7.7.1",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "cac": "^6.7.14",
+    "detect-indent": "^7.0.2",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2",
+    "semver": "^7.7.3"
+  }
+}
