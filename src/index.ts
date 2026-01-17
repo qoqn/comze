@@ -1,54 +1,42 @@
-import { resolve } from "path";
-import pc from "picocolors";
-import type { PackageInfo, CLIOptions, Stability } from "./types";
-import { fetchAllPackages } from "./fetcher";
-import {
-  readComposerJson,
-  writeComposerJson,
-  runComposerUpdate,
-} from "./writer";
-import { getDiffType } from "./utils/version";
-import { formatAge, getAgeMonths } from "./utils/time";
-import { renderHeader, renderTable, renderFooter } from "./ui/render";
-import { selectPackages } from "./interactive";
-
-const VERSION = "0.2.0";
+import { resolve } from 'path';
+import pc from 'picocolors';
+import type { PackageInfo, CLIOptions, Stability } from './types';
+import { fetchAllPackages } from './fetcher';
+import { readComposerJson, writeComposerJson, runComposerUpdate } from './writer';
+import { getDiffType } from './utils/version';
+import { formatAge, getAgeMonths } from './utils/time';
+import { renderHeader, renderTable, renderFooter } from './ui/render';
+import { selectPackages } from './interactive';
+import pkg from '../package.json';
 
 export async function run(options: CLIOptions): Promise<void> {
-  renderHeader(VERSION);
+  renderHeader(pkg.version);
 
-  const composerPath = resolve(process.cwd(), "composer.json");
+  const composerPath = resolve(process.cwd(), 'composer.json');
   const composer = await readComposerJson(composerPath);
 
   if (!composer) {
-    console.error(pc.red("  ✗ Could not read composer.json"));
+    console.error(pc.red('  ✗ Could not read composer.json'));
     process.exit(1);
   }
 
-  const minStability: Stability =
-    composer.content["minimum-stability"] ?? "stable";
-  const preferStable: boolean = composer.content["prefer-stable"] ?? true;
+  const minStability: Stability = composer.content['minimum-stability'] ?? 'stable';
+  const preferStable: boolean = composer.content['prefer-stable'] ?? true;
 
   const allPackages = {
     ...composer.content.require,
-    ...composer.content["require-dev"],
+    ...composer.content['require-dev'],
   };
 
   const filteredPackages: Record<string, string> = {};
   for (const [name, version] of Object.entries(allPackages)) {
-    if (name === "php" || name.startsWith("ext-")) continue;
+    if (name === 'php' || name.startsWith('ext-')) continue;
     if (options.exclude.includes(name)) continue;
     filteredPackages[name] = version;
   }
 
-  console.log(
-    pc.gray(`  Checking ${Object.keys(filteredPackages).length} packages...`),
-  );
-  console.log(
-    pc.gray(
-      `  Stability: ${minStability}${preferStable ? " (prefer-stable)" : ""}\n`,
-    ),
-  );
+  console.log(pc.gray(`  Checking ${Object.keys(filteredPackages).length} packages...`));
+  console.log(pc.gray(`  Stability: ${minStability}${preferStable ? ' (prefer-stable)' : ''}\n`));
 
   const results = await fetchAllPackages(
     filteredPackages,
@@ -66,12 +54,11 @@ export async function run(options: CLIOptions): Promise<void> {
     const diffType = getDiffType(currentVersion, result.latestVersion);
     if (!diffType) continue;
 
-    if (diffType === "major" && !options.major) continue;
-    if (diffType === "minor" && !options.minor) continue;
-    if (diffType === "patch" && !options.patch) continue;
+    if (diffType === 'major' && !options.major) continue;
+    if (diffType === 'minor' && !options.minor) continue;
+    if (diffType === 'patch' && !options.patch) continue;
 
-    const majorAvailable =
-      !options.major && result.majorVersion ? result.majorVersion : undefined;
+    const majorAvailable = !options.major && result.majorVersion ? result.majorVersion : undefined;
 
     updates.push({
       name,
@@ -97,36 +84,30 @@ export async function run(options: CLIOptions): Promise<void> {
   if (options.interactive) {
     selectedUpdates = await selectPackages(updates);
     if (selectedUpdates.length === 0) {
-      console.log(pc.gray("  No packages selected.\n"));
+      console.log(pc.gray('  No packages selected.\n'));
       return;
     }
   }
 
   if (options.write || options.install) {
-    const success = await writeComposerJson(
-      composerPath,
-      selectedUpdates,
-      options.dryRun,
-    );
+    const success = await writeComposerJson(composerPath, selectedUpdates, options.dryRun);
     if (success && !options.dryRun) {
-      console.log(pc.green("  ✓ Updated composer.json"));
+      console.log(pc.green('  ✓ Updated composer.json'));
       if (options.write && !options.install) {
-        console.log(
-          pc.gray('\n  Run "composer update" to install the new versions\n'),
-        );
+        console.log(pc.gray('\n  Run "composer update" to install the new versions\n'));
       } else {
-        console.log("");
+        console.log('');
       }
     }
   }
 
   if (options.install && !options.dryRun) {
-    console.log(pc.gray("  Running composer update...\n"));
+    console.log(pc.gray('  Running composer update...\n'));
     const success = await runComposerUpdate(process.cwd());
     if (success) {
-      console.log(pc.green("\n  ✓ Dependencies updated successfully!\n"));
+      console.log(pc.green('\n  ✓ Dependencies updated successfully!\n'));
     } else {
-      console.error(pc.red("\n  ✗ Failed to run composer update\n"));
+      console.error(pc.red('\n  ✗ Failed to run composer update\n'));
       process.exit(1);
     }
   }
