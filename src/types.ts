@@ -64,6 +64,7 @@ export interface PackagistVersion {
   version_normalized: string;
   time: string;
   require?: Record<string, string>;
+  abandoned?: boolean | string;
 }
 
 /**

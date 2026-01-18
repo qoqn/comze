@@ -1,4 +1,7 @@
-import { describe, test, expect, mock, afterEach } from 'bun:test';
+import { describe, test, expect, mock, afterEach, afterAll } from 'bun:test';
+import { setCache, getCacheEntry } from '../src/cache';
+import path from 'node:path';
+import os from 'node:os';
 import type { Stability } from '../src/types';
 import { fetchPackage, fetchAllPackages } from '../src/fetcher';
 
@@ -10,7 +13,7 @@ const fetchPackageNoCache = (
   preferStable: boolean = true,
   currentVersion?: string,
   allowMajor: boolean = true,
-) => fetchPackage(packageName, minStability, preferStable, currentVersion, allowMajor, NO_CACHE);
+) => fetchPackage(packageName, minStability, preferStable, currentVersion, allowMajor, true);
 
 const fetchAllPackagesNoCache = (
   packages: Record<string, string>,
@@ -19,11 +22,25 @@ const fetchAllPackagesNoCache = (
   allowMajor: boolean = true,
 ) => fetchAllPackages(packages, minStability, preferStable, allowMajor, NO_CACHE);
 
+const TEST_CACHE_DIR = path.join(
+  os.tmpdir(),
+  `comze-fetcher-test-${Math.random().toString(36).slice(2)}`,
+);
+process.env.COMZE_CACHE_DIR = TEST_CACHE_DIR;
+
 describe('fetchPackage', () => {
   const originalFetch = globalThis.fetch;
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+  });
+
+  afterAll(async () => {
+    try {
+      await import('node:fs/promises').then((fs) =>
+        fs.rm(TEST_CACHE_DIR, { recursive: true, force: true }),
+      );
+    } catch {}
   });
 
   test('returns package info for valid package', async () => {
@@ -44,7 +61,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -59,7 +76,7 @@ describe('fetchPackage', () => {
   });
 
   test('returns null for non-existent package', async () => {
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: false,
@@ -72,7 +89,7 @@ describe('fetchPackage', () => {
   });
 
   test('returns null for empty versions', async () => {
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -107,7 +124,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -137,7 +154,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -150,7 +167,7 @@ describe('fetchPackage', () => {
   });
 
   test('returns null on fetch error', async () => {
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() => Promise.reject(new Error('Network error')));
 
     const result = await fetchPackageNoCache('vendor/package');
@@ -158,7 +175,7 @@ describe('fetchPackage', () => {
   });
 
   test('returns null when packages object is missing', async () => {
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -188,7 +205,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -213,7 +230,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -243,7 +260,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -269,7 +286,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() =>
       Promise.resolve({
         ok: true,
@@ -283,16 +300,9 @@ describe('fetchPackage', () => {
   });
 
   test('detects deprecated package and replacement', async () => {
-    // @ts-expect-error - mocking fetch
-    globalThis.fetch = mock((url: string) => {
-      if (url.startsWith('https://packagist.org/packages/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ package: { abandoned: 'vendor/new-package' } }),
-        });
-      }
-
-      return Promise.resolve({
+    // @ts-expect-error
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
         ok: true,
         json: () =>
           Promise.resolve({
@@ -302,12 +312,13 @@ describe('fetchPackage', () => {
                   version: '1.5.0',
                   version_normalized: '1.5.0.0',
                   time: '2024-01-01T12:00:00+00:00',
+                  abandoned: 'vendor/new-package',
                 },
               ],
             },
           }),
-      });
-    });
+      }),
+    );
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result?.deprecated).toBe(true);
@@ -315,16 +326,9 @@ describe('fetchPackage', () => {
   });
 
   test('detects deprecated package without replacement', async () => {
-    // @ts-expect-error - mocking fetch
-    globalThis.fetch = mock((url: string) => {
-      if (url.startsWith('https://packagist.org/packages/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ package: { abandoned: true } }),
-        });
-      }
-
-      return Promise.resolve({
+    // @ts-expect-error
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
         ok: true,
         json: () =>
           Promise.resolve({
@@ -334,103 +338,76 @@ describe('fetchPackage', () => {
                   version: '1.5.0',
                   version_normalized: '1.5.0.0',
                   time: '2024-01-01T12:00:00+00:00',
+                  abandoned: true,
                 },
               ],
             },
           }),
-      });
-    });
+      }),
+    );
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result?.deprecated).toBe(true);
     expect(result?.replacement).toBeUndefined();
   });
+  test('uses If-Modified-Since header when cached version exists', async () => {
+    const cachedValue = {
+      latestVersion: '1.0.0',
+      releaseTime: '2023-01-01T12:00:00+00:00',
+    };
 
-  test('handles deprecated metadata fetch not ok', async () => {
-    // @ts-expect-error - mocking fetch
-    globalThis.fetch = mock((url: string) => {
-      if (url.startsWith('https://packagist.org/packages/')) {
-        return Promise.resolve({ ok: false, status: 500 });
-      }
-
-      return Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            packages: {
-              'vendor/package': [
-                {
-                  version: '1.5.0',
-                  version_normalized: '1.5.0.0',
-                  time: '2024-01-01T12:00:00+00:00',
-                },
-              ],
-            },
-          }),
-      });
+    await setCache('vendor_package', cachedValue, {
+      lastModified: 'Mon, 01 Jan 2024 12:00:00 GMT',
     });
 
-    const result = await fetchPackageNoCache('vendor/package');
-    expect(result?.deprecated).toBeUndefined();
+    // @ts-expect-error
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        status: 304,
+        json: () => Promise.resolve({}),
+      }),
+    );
+
+    const result = await fetchPackage('vendor/package', 'stable', true, undefined, true, false);
+
+    // @ts-expect-error
+    const fetchCall = globalThis.fetch.mock.calls[0];
+    const headers = fetchCall[1]?.headers;
+    expect(headers).toHaveProperty('If-Modified-Since', 'Mon, 01 Jan 2024 12:00:00 GMT');
+
+    expect(result).toEqual(cachedValue);
   });
 
-  test('handles deprecated metadata without abandoned field', async () => {
-    // @ts-expect-error - mocking fetch
-    globalThis.fetch = mock((url: string) => {
-      if (url.startsWith('https://packagist.org/packages/')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ package: {} }),
-        });
-      }
+  test('updates cache with Last-Modified on 200 OK', async () => {
+    const mockResponse = {
+      packages: {
+        'vendor/package': [
+          {
+            version: '2.0.0',
+            version_normalized: '2.0.0.0',
+            time: '2024-01-01T12:00:00+00:00',
+          },
+        ],
+      },
+    };
 
-      return Promise.resolve({
+    // @ts-expect-error
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
         ok: true,
-        json: () =>
-          Promise.resolve({
-            packages: {
-              'vendor/package': [
-                {
-                  version: '1.5.0',
-                  version_normalized: '1.5.0.0',
-                  time: '2024-01-01T12:00:00+00:00',
-                },
-              ],
-            },
-          }),
-      });
-    });
+        status: 200,
+        headers: new Map([['Last-Modified', 'Tue, 02 Jan 2024 12:00:00 GMT']]),
+        json: () => Promise.resolve(mockResponse),
+      }),
+    );
 
-    const result = await fetchPackageNoCache('vendor/package');
-    expect(result?.deprecated).toBeUndefined();
-  });
+    await fetchPackage('vendor/package', 'stable', true, undefined, true, false);
 
-  test('handles deprecated metadata fetch error', async () => {
-    // @ts-expect-error - mocking fetch
-    globalThis.fetch = mock((url: string) => {
-      if (url.startsWith('https://packagist.org/packages/')) {
-        return Promise.reject(new Error('Network error'));
-      }
-
-      return Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            packages: {
-              'vendor/package': [
-                {
-                  version: '1.5.0',
-                  version_normalized: '1.5.0.0',
-                  time: '2024-01-01T12:00:00+00:00',
-                },
-              ],
-            },
-          }),
-      });
-    });
-
-    const result = await fetchPackageNoCache('vendor/package');
-    expect(result?.deprecated).toBeUndefined();
+    const cached = await getCacheEntry<any>('vendor_package');
+    expect(cached).not.toBeNull();
+    expect(cached?.value.latestVersion).toBe('2.0.0');
+    expect(cached?.lastModified).toBe('Tue, 02 Jan 2024 12:00:00 GMT');
   });
 });
 
@@ -442,7 +419,7 @@ describe('fetchAllPackages', () => {
   });
 
   test('fetches multiple packages', async () => {
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock((url: string) => {
       const packageName = url.replace('https://repo.packagist.org/p2/', '').replace('.json', '');
       return Promise.resolve({
@@ -475,7 +452,7 @@ describe('fetchAllPackages', () => {
 
   test('handles failed fetches gracefully', async () => {
     let callCount = 0;
-    // @ts-expect-error - mocking fetch
+    // @ts-expect-error
     globalThis.fetch = mock(() => {
       callCount++;
       if (callCount === 1) {

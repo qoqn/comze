@@ -2,10 +2,9 @@ import semver from 'semver';
 import type { PackagistVersion, Stability } from './types';
 import { STABILITY_ORDER } from './types';
 import { getVersionStability, normalizeVersion } from './utils/version';
-import { getCache, setCache } from './cache';
+import { getCacheEntry, setCache, touchCache, type CacheEntry } from './cache';
 
 const PACKAGIST_API = 'https://repo.packagist.org/p2';
-const PACKAGIST_PACKAGE_API = 'https://packagist.org/packages';
 
 export interface FetchResult {
   latestVersion: string;
@@ -14,47 +13,6 @@ export interface FetchResult {
   majorVersion?: string;
   deprecated?: boolean;
   replacement?: string;
-}
-
-async function fetchDeprecatedInfo(
-  packageName: string,
-  noCache: boolean = false,
-): Promise<{ deprecated?: boolean; replacement?: string }> {
-  const cacheKey = `${packageName.replace('/', '_')}_deprecated`;
-
-  if (!noCache) {
-    const cached = await getCache<{ deprecated?: boolean; replacement?: string }>(cacheKey);
-    if (cached) return cached;
-  }
-
-  try {
-    const url = `${PACKAGIST_PACKAGE_API}/${packageName}.json`;
-    const response = await fetch(url);
-    if (!response.ok) return {};
-
-    const data = (await response.json()) as {
-      package?: { abandoned?: boolean | string };
-    };
-
-    const abandoned = data.package?.abandoned;
-    if (!abandoned) {
-      const result = {};
-      if (!noCache) await setCache(cacheKey, result);
-      return result;
-    }
-
-    if (typeof abandoned === 'string') {
-      const result = { deprecated: true, replacement: abandoned };
-      if (!noCache) await setCache(cacheKey, result);
-      return result;
-    }
-
-    const result = { deprecated: true };
-    if (!noCache) await setCache(cacheKey, result);
-    return result;
-  } catch {
-    return {};
-  }
 }
 
 /**
@@ -74,14 +32,24 @@ export async function fetchPackage(
 ): Promise<FetchResult | null> {
   const cacheKey = packageName.replace('/', '_');
 
+  let cachedEntry: CacheEntry<FetchResult> | null = null;
+  const headers: Record<string, string> = {};
+
   if (!noCache) {
-    const cached = await getCache<FetchResult>(cacheKey);
-    if (cached) return cached;
+    cachedEntry = await getCacheEntry<FetchResult>(cacheKey);
+    if (cachedEntry?.lastModified) {
+      headers['If-Modified-Since'] = cachedEntry.lastModified;
+    }
   }
 
   try {
     const url = `${PACKAGIST_API}/${packageName}.json`;
-    const response = await fetch(url);
+    const response = await fetch(url, { headers });
+
+    if (response.status === 304 && cachedEntry) {
+      await touchCache(cacheKey);
+      return cachedEntry.value;
+    }
 
     if (!response.ok) return null;
 
@@ -155,7 +123,17 @@ export async function fetchPackage(
       }
     }
 
-    const deprecatedInfo = await fetchDeprecatedInfo(packageName, noCache);
+    const deprecatedInfo: {
+      deprecated?: boolean;
+      replacement?: string;
+    } = {};
+
+    if (typeof selectedVersion.abandoned === 'string') {
+      deprecatedInfo.deprecated = true;
+      deprecatedInfo.replacement = selectedVersion.abandoned;
+    } else if (selectedVersion.abandoned) {
+      deprecatedInfo.deprecated = true;
+    }
 
     const result: FetchResult = {
       latestVersion: selectedVersion.version,
@@ -167,7 +145,8 @@ export async function fetchPackage(
     };
 
     if (!noCache) {
-      await setCache(cacheKey, result);
+      const lastModified = response.headers.get('Last-Modified') || undefined;
+      await setCache(cacheKey, result, { lastModified });
     }
 
     return result;
