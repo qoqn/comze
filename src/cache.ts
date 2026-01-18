@@ -2,7 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
-
 function getCacheDir(): string {
   const home = os.homedir();
   const platform = os.platform();
@@ -28,13 +27,17 @@ function getCacheDir(): string {
 }
 
 export interface CacheEntry<T> {
+  version: number;
   timestamp: number;
   value: T;
   lastModified?: string;
   etag?: string;
 }
 
-export async function getCacheEntry<T>(key: string): Promise<CacheEntry<T> | null> {
+export async function getCacheEntry<T>(
+  key: string,
+  expectedVersion: number,
+): Promise<CacheEntry<T> | null> {
   try {
     const cacheDir = getCacheDir();
     const filePath = path.join(cacheDir, `${key}.json`);
@@ -42,21 +45,29 @@ export async function getCacheEntry<T>(key: string): Promise<CacheEntry<T> | nul
     const content = await fs.readFile(filePath, 'utf-8');
     const data = JSON.parse(content) as CacheEntry<T>;
 
+    if (data.version !== expectedVersion) {
+      return null;
+    }
+
     return data;
   } catch {
     return null;
   }
 }
 
-
-
-export async function setCache<T>(key: string, value: T, meta: { lastModified?: string; etag?: string } = {}): Promise<void> {
+export async function setCache<T>(
+  key: string,
+  value: T,
+  version: number,
+  meta: { lastModified?: string; etag?: string } = {},
+): Promise<void> {
   try {
     const cacheDir = getCacheDir();
     await fs.mkdir(cacheDir, { recursive: true });
 
     const filePath = path.join(cacheDir, `${key}.json`);
     const data: CacheEntry<T> = {
+      version,
       timestamp: Date.now(),
       value,
       lastModified: meta.lastModified,
@@ -64,14 +75,17 @@ export async function setCache<T>(key: string, value: T, meta: { lastModified?: 
     };
 
     await fs.writeFile(filePath, JSON.stringify(data), 'utf-8');
-  } catch { }
+  } catch {}
 }
 
-export async function touchCache(key: string): Promise<void> {
+export async function touchCache(key: string, version: number): Promise<void> {
   try {
-    const entry = await getCacheEntry(key);
+    const entry = await getCacheEntry(key, version);
     if (entry) {
-      await setCache(key, entry.value, { lastModified: entry.lastModified, etag: entry.etag });
+      await setCache(key, entry.value, version, {
+        lastModified: entry.lastModified,
+        etag: entry.etag,
+      });
     }
-  } catch { }
+  } catch {}
 }

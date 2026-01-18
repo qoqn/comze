@@ -38,12 +38,15 @@ export async function run(options: CLIOptions): Promise<void> {
   console.log(pc.gray(`  Checking ${Object.keys(filteredPackages).length} packages...`));
   console.log(pc.gray(`  Stability: ${minStability}${preferStable ? ' (prefer-stable)' : ''}\n`));
 
+  const projectPhp = allPackages['php'];
+
   const results = await fetchAllPackages(
     filteredPackages,
     minStability,
     preferStable,
     options.major,
     options.noCache,
+    projectPhp,
   );
 
   const updates: PackageInfo[] = [];
@@ -82,6 +85,8 @@ export async function run(options: CLIOptions): Promise<void> {
       phpRequirement: result.phpRequirement,
       deprecated: result.deprecated,
       replacement: result.replacement,
+      phpIncompatible: result.phpIncompatible,
+      skippedVersion: result.skippedVersion,
     });
   }
 

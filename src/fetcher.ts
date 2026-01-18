@@ -3,8 +3,11 @@ import type { PackagistVersion, Stability } from './types';
 import { STABILITY_ORDER } from './types';
 import { getVersionStability, normalizeVersion } from './utils/version';
 import { getCacheEntry, setCache, touchCache, type CacheEntry } from './cache';
+import { checkPhpCompatibility } from './utils/php';
 
 const PACKAGIST_API = 'https://repo.packagist.org/p2';
+
+const CACHE_VERSION = 1;
 
 export interface FetchResult {
   latestVersion: string;
@@ -13,6 +16,13 @@ export interface FetchResult {
   majorVersion?: string;
   deprecated?: boolean;
   replacement?: string;
+  phpIncompatible?: boolean;
+  skippedVersion?: string;
+  require?: Record<string, string>;
+}
+
+interface PackagistResponse {
+  packages?: Record<string, PackagistVersion[]>;
 }
 
 /**
@@ -29,33 +39,39 @@ export async function fetchPackage(
   currentVersion?: string,
   allowMajor: boolean = true,
   noCache: boolean = false,
+  projectPhp?: string,
 ): Promise<FetchResult | null> {
   const cacheKey = packageName.replace('/', '_');
 
-  let cachedEntry: CacheEntry<FetchResult> | null = null;
+  let cachedEntry: CacheEntry<PackagistResponse> | null = null;
   const headers: Record<string, string> = {};
 
   if (!noCache) {
-    cachedEntry = await getCacheEntry<FetchResult>(cacheKey);
+    cachedEntry = await getCacheEntry<PackagistResponse>(cacheKey, CACHE_VERSION);
     if (cachedEntry?.lastModified) {
       headers['If-Modified-Since'] = cachedEntry.lastModified;
     }
   }
+
+  let data: PackagistResponse;
 
   try {
     const url = `${PACKAGIST_API}/${packageName}.json`;
     const response = await fetch(url, { headers });
 
     if (response.status === 304 && cachedEntry) {
-      await touchCache(cacheKey);
-      return cachedEntry.value;
+      await touchCache(cacheKey, CACHE_VERSION);
+      data = cachedEntry.value;
+    } else if (response.ok) {
+      data = (await response.json()) as PackagistResponse;
+      if (!noCache) {
+        const lastModified = response.headers.get('Last-Modified') || undefined;
+        await setCache(cacheKey, data, CACHE_VERSION, { lastModified });
+      }
+    } else {
+      return null;
     }
 
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as {
-      packages?: Record<string, PackagistVersion[]>;
-    };
     const versions: PackagistVersion[] = data.packages?.[packageName] ?? [];
 
     if (versions.length === 0) return null;
@@ -90,6 +106,30 @@ export async function fetchPackage(
     }
 
     if (!selectedVersion) return null;
+
+    let phpIncompatible = false;
+    let skippedVersion: string | undefined;
+
+    if (projectPhp && selectedVersion.require?.php) {
+      const phpCheck = checkPhpCompatibility(projectPhp, selectedVersion.require.php);
+      if (!phpCheck.satisfied) {
+        phpIncompatible = true;
+        skippedVersion = selectedVersion.version;
+
+        const versionsToCheck = preferStable
+          ? eligibleVersions.filter((v) => getVersionStability(v.version) === 'stable')
+          : eligibleVersions;
+
+        const compatibleVersion = versionsToCheck.find((v) => {
+          if (!v.require?.php) return true;
+          return checkPhpCompatibility(projectPhp, v.require.php).satisfied;
+        });
+
+        if (compatibleVersion && compatibleVersion !== selectedVersion) {
+          selectedVersion = compatibleVersion;
+        }
+      }
+    }
 
     const phpRequirement = selectedVersion.require?.php;
     let majorDetected: string | undefined;
@@ -142,12 +182,10 @@ export async function fetchPackage(
       majorVersion: majorDetected,
       deprecated: deprecatedInfo.deprecated,
       replacement: deprecatedInfo.replacement,
+      phpIncompatible: phpIncompatible || undefined,
+      skippedVersion,
+      require: selectedVersion.require,
     };
-
-    if (!noCache) {
-      const lastModified = response.headers.get('Last-Modified') || undefined;
-      await setCache(cacheKey, result, { lastModified });
-    }
 
     return result;
   } catch {
@@ -168,6 +206,7 @@ export async function fetchAllPackages(
   preferStable: boolean = true,
   allowMajor: boolean = true,
   noCache: boolean = false,
+  projectPhp?: string,
 ): Promise<Map<string, FetchResult>> {
   const results = new Map<string, FetchResult>();
   const entries = Object.entries(packages);
@@ -183,6 +222,7 @@ export async function fetchAllPackages(
         version,
         allowMajor,
         noCache,
+        projectPhp,
       );
       if (result) results.set(name, result);
     });

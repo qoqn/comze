@@ -31,6 +31,18 @@ process.env.COMZE_CACHE_DIR = TEST_CACHE_DIR;
 describe('fetchPackage', () => {
   const originalFetch = globalThis.fetch;
 
+  const mockFetch = (response: object, ok = true, status = 200) => {
+    // @ts-expect-error
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok,
+        status,
+        headers: new Map(),
+        json: () => Promise.resolve(response),
+      }),
+    );
+  };
+
   afterEach(() => {
     globalThis.fetch = originalFetch;
   });
@@ -61,13 +73,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      }),
-    );
+    mockFetch(mockResponse);
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result).not.toBeNull();
@@ -76,26 +82,14 @@ describe('fetchPackage', () => {
   });
 
   test('returns null for non-existent package', async () => {
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: false,
-        status: 404,
-      }),
-    );
+    mockFetch({}, false, 404);
 
     const result = await fetchPackageNoCache('nonexistent/package');
     expect(result).toBeNull();
   });
 
   test('returns null for empty versions', async () => {
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ packages: { 'vendor/package': [] } }),
-      }),
-    );
+    mockFetch({ packages: { 'vendor/package': [] } });
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result).toBeNull();
@@ -124,13 +118,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      }),
-    );
+    mockFetch(mockResponse);
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result?.latestVersion).toBe('1.5.0');
@@ -154,13 +142,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      }),
-    );
+    mockFetch(mockResponse);
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result?.latestVersion).toBe('dev-main');
@@ -175,13 +157,7 @@ describe('fetchPackage', () => {
   });
 
   test('returns null when packages object is missing', async () => {
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({}),
-      }),
-    );
+    mockFetch({});
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result).toBeNull();
@@ -205,13 +181,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      }),
-    );
+    mockFetch(mockResponse);
 
     const result = await fetchPackageNoCache('vendor/package', 'beta', false);
     expect(result?.latestVersion).toBe('2.0.0-beta');
@@ -230,13 +200,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      }),
-    );
+    mockFetch(mockResponse);
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result?.phpRequirement).toBe('>=8.1');
@@ -260,13 +224,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      }),
-    );
+    mockFetch(mockResponse);
 
     const result = await fetchPackageNoCache('vendor/package', 'stable', true, '1.0.0', false);
     expect(result?.latestVersion).toBe('1.5.0');
@@ -286,13 +244,7 @@ describe('fetchPackage', () => {
       },
     };
 
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      }),
-    );
+    mockFetch(mockResponse);
 
     const result = await fetchPackageNoCache('vendor/package', 'stable', true, '^2.0.0');
     expect(result?.latestVersion).toBe('2.5.0');
@@ -300,25 +252,18 @@ describe('fetchPackage', () => {
   });
 
   test('detects deprecated package and replacement', async () => {
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            packages: {
-              'vendor/package': [
-                {
-                  version: '1.5.0',
-                  version_normalized: '1.5.0.0',
-                  time: '2024-01-01T12:00:00+00:00',
-                  abandoned: 'vendor/new-package',
-                },
-              ],
-            },
-          }),
-      }),
-    );
+    mockFetch({
+      packages: {
+        'vendor/package': [
+          {
+            version: '1.5.0',
+            version_normalized: '1.5.0.0',
+            time: '2024-01-01T12:00:00+00:00',
+            abandoned: 'vendor/new-package',
+          },
+        ],
+      },
+    });
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result?.deprecated).toBe(true);
@@ -326,25 +271,18 @@ describe('fetchPackage', () => {
   });
 
   test('detects deprecated package without replacement', async () => {
-    // @ts-expect-error
-    globalThis.fetch = mock(() =>
-      Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            packages: {
-              'vendor/package': [
-                {
-                  version: '1.5.0',
-                  version_normalized: '1.5.0.0',
-                  time: '2024-01-01T12:00:00+00:00',
-                  abandoned: true,
-                },
-              ],
-            },
-          }),
-      }),
-    );
+    mockFetch({
+      packages: {
+        'vendor/package': [
+          {
+            version: '1.5.0',
+            version_normalized: '1.5.0.0',
+            time: '2024-01-01T12:00:00+00:00',
+            abandoned: true,
+          },
+        ],
+      },
+    });
 
     const result = await fetchPackageNoCache('vendor/package');
     expect(result?.deprecated).toBe(true);
@@ -352,11 +290,18 @@ describe('fetchPackage', () => {
   });
   test('uses If-Modified-Since header when cached version exists', async () => {
     const cachedValue = {
-      latestVersion: '1.0.0',
-      releaseTime: '2023-01-01T12:00:00+00:00',
+      packages: {
+        'vendor/package': [
+          {
+            version: '1.0.0',
+            version_normalized: '1.0.0.0',
+            time: '2023-01-01T12:00:00+00:00',
+          },
+        ],
+      },
     };
 
-    await setCache('vendor_package', cachedValue, {
+    await setCache('vendor_package', cachedValue, 1, {
       lastModified: 'Mon, 01 Jan 2024 12:00:00 GMT',
     });
 
@@ -376,7 +321,7 @@ describe('fetchPackage', () => {
     const headers = fetchCall[1]?.headers;
     expect(headers).toHaveProperty('If-Modified-Since', 'Mon, 01 Jan 2024 12:00:00 GMT');
 
-    expect(result).toEqual(cachedValue);
+    expect(result?.latestVersion).toBe('1.0.0');
   });
 
   test('updates cache with Last-Modified on 200 OK', async () => {
@@ -404,10 +349,37 @@ describe('fetchPackage', () => {
 
     await fetchPackage('vendor/package', 'stable', true, undefined, true, false);
 
-    const cached = await getCacheEntry<any>('vendor_package');
+    const cached = await getCacheEntry<any>('vendor_package', 1);
     expect(cached).not.toBeNull();
-    expect(cached?.value.latestVersion).toBe('2.0.0');
+    expect(cached?.value.packages?.['vendor/package'][0]?.version).toBe('2.0.0');
     expect(cached?.lastModified).toBe('Tue, 02 Jan 2024 12:00:00 GMT');
+  });
+
+  test('falls back to compatible PHP version', async () => {
+    const mockResponse = {
+      packages: {
+        'vendor/package': [
+          { version: '2.0.0', time: '2023-01-01', require: { php: '^8.1' } },
+          { version: '1.5.0', time: '2022-01-01', require: { php: '^8.0' } },
+          { version: '1.0.0', time: '2021-01-01', require: { php: '^7.4' } },
+        ],
+      },
+    };
+    mockFetch(mockResponse);
+
+    const result = await fetchPackage(
+      'vendor/package',
+      'stable',
+      true,
+      undefined,
+      true,
+      false,
+      '8.0.0',
+    );
+
+    expect(result?.latestVersion).toBe('1.5.0');
+    expect(result?.phpIncompatible).toBe(true);
+    expect(result?.skippedVersion).toBe('2.0.0');
   });
 });
 

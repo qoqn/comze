@@ -61,6 +61,9 @@ export function renderTable(packages: PackageInfo[]): void {
     if (pkg.phpRequirement) {
       extra += pc.gray(`  php ${pkg.phpRequirement}`);
     }
+    if (pkg.phpIncompatible && pkg.skippedVersion) {
+      extra += pc.yellow(`  ${pkg.skippedVersion} skipped (php)`);
+    }
     if (pkg.deprecated) {
       extra += pc.red('  deprecated');
       if (pkg.replacement) {
@@ -69,6 +72,15 @@ export function renderTable(packages: PackageInfo[]): void {
     }
 
     console.log(`  ${name}  ${oldVer}  ${arrow}  ${coloredNewVer}  ${diffLabel}  ${age}${extra}`);
+  }
+
+  const skippedPackages = packages.filter((p) => p.phpIncompatible && p.skippedVersion);
+  if (skippedPackages.length > 0) {
+    console.log(pc.yellow('\n  Some versions skipped due to PHP constraints:'));
+    for (const pkg of skippedPackages) {
+      console.log(`    ${pc.bold(pkg.name)} ${pkg.skippedVersion} requires higher PHP version`);
+    }
+    console.log(pc.gray('    Update the php constraint in composer.json to use these versions.'));
   }
 
   console.log('');
@@ -115,6 +127,9 @@ export function formatPackageChoice(pkg: PackageInfo): string {
   }
   if (pkg.phpRequirement) {
     extra += pc.gray(` php ${pkg.phpRequirement}`);
+  }
+  if (pkg.phpIncompatible && pkg.skippedVersion) {
+    extra += pc.yellow(` ${pkg.skippedVersion} skipped`);
   }
   if (pkg.deprecated) {
     extra += pc.red(' deprecated');

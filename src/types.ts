@@ -13,6 +13,8 @@ export interface PackageInfo {
   phpRequirement?: string;
   deprecated?: boolean;
   replacement?: string;
+  phpIncompatible?: boolean;
+  skippedVersion?: string;
 }
 
 /**
