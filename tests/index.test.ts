@@ -92,7 +92,10 @@ describe('run', () => {
   });
 
   test('stops before composer update when composer.json cannot be written', async () => {
-    const composerPath = path.join(tempDir, 'composer.json');
+    const lockedDir = path.join(tempDir, 'locked');
+    await mkdir(lockedDir, { recursive: true });
+
+    const composerPath = path.join(lockedDir, 'composer.json');
     await writeFile(
       composerPath,
       JSON.stringify(
@@ -105,7 +108,8 @@ describe('run', () => {
         2,
       ),
     );
-    await chmod(composerPath, 0o444);
+    process.chdir(lockedDir);
+    await chmod(lockedDir, 0o555);
 
     const binDir = path.join(tempDir, 'bin');
     const markerPath = path.join(tempDir, 'composer-ran');
@@ -153,6 +157,8 @@ describe('run', () => {
     ).rejects.toThrow('EXIT:1');
 
     await expect(readFile(markerPath, 'utf-8')).rejects.toThrow();
+
+    await chmod(lockedDir, 0o755);
 
     exitSpy.mockRestore();
     logSpy.mockRestore();
