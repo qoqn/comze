@@ -34,13 +34,16 @@ export interface CacheEntry<T> {
   etag?: string;
 }
 
+function getCacheFilePath(key: string): string {
+  return path.join(getCacheDir(), `${key}.json`);
+}
+
 export async function getCacheEntry<T>(
   key: string,
   expectedVersion: number,
 ): Promise<CacheEntry<T> | null> {
   try {
-    const cacheDir = getCacheDir();
-    const filePath = path.join(cacheDir, `${key}.json`);
+    const filePath = getCacheFilePath(key);
 
     const content = await fs.readFile(filePath, 'utf-8');
     const data = JSON.parse(content) as CacheEntry<T>;
@@ -65,7 +68,7 @@ export async function setCache<T>(
     const cacheDir = getCacheDir();
     await fs.mkdir(cacheDir, { recursive: true });
 
-    const filePath = path.join(cacheDir, `${key}.json`);
+    const filePath = getCacheFilePath(key);
     const data: CacheEntry<T> = {
       version,
       timestamp: Date.now(),
@@ -82,10 +85,8 @@ export async function touchCache(key: string, version: number): Promise<void> {
   try {
     const entry = await getCacheEntry(key, version);
     if (entry) {
-      await setCache(key, entry.value, version, {
-        lastModified: entry.lastModified,
-        etag: entry.etag,
-      });
+      const now = new Date();
+      await fs.utimes(getCacheFilePath(key), now, now);
     }
   } catch {}
 }

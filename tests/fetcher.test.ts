@@ -303,6 +303,7 @@ describe('fetchPackage', () => {
 
     await setCache('vendor_package', cachedValue, 1, {
       lastModified: 'Mon, 01 Jan 2024 12:00:00 GMT',
+      etag: '"etag-1"',
     });
 
     // @ts-expect-error
@@ -320,6 +321,7 @@ describe('fetchPackage', () => {
     const fetchCall = globalThis.fetch.mock.calls[0];
     const headers = fetchCall[1]?.headers;
     expect(headers).toHaveProperty('If-Modified-Since', 'Mon, 01 Jan 2024 12:00:00 GMT');
+    expect(headers).toHaveProperty('If-None-Match', '"etag-1"');
 
     expect(result?.latestVersion).toBe('1.0.0');
   });
@@ -342,7 +344,10 @@ describe('fetchPackage', () => {
       Promise.resolve({
         ok: true,
         status: 200,
-        headers: new Map([['Last-Modified', 'Tue, 02 Jan 2024 12:00:00 GMT']]),
+        headers: new Map([
+          ['Last-Modified', 'Tue, 02 Jan 2024 12:00:00 GMT'],
+          ['ETag', '"etag-2"'],
+        ]),
         json: () => Promise.resolve(mockResponse),
       }),
     );
@@ -353,6 +358,7 @@ describe('fetchPackage', () => {
     expect(cached).not.toBeNull();
     expect(cached?.value.packages?.['vendor/package'][0]?.version).toBe('2.0.0');
     expect(cached?.lastModified).toBe('Tue, 02 Jan 2024 12:00:00 GMT');
+    expect(cached?.etag).toBe('"etag-2"');
   });
 
   test('falls back to compatible PHP version', async () => {

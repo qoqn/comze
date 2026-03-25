@@ -1,7 +1,8 @@
 import { describe, test, expect, afterAll } from 'bun:test';
+import { stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { getCacheEntry, setCache } from '../src/cache';
+import { getCacheEntry, setCache, touchCache } from '../src/cache';
 
 const TEST_CACHE_KEY = 'test_key';
 const TEST_CACHE_DIR = path.join(
@@ -24,6 +25,27 @@ describe('Cache', () => {
   test('returns null for missing key', async () => {
     const cached = await getCacheEntry('non_existent_key', 1);
     expect(cached).toBeNull();
+  });
+
+  test('touchCache refreshes file mtime without changing cached value', async () => {
+    const data = { foo: 'bar' };
+    await setCache(TEST_CACHE_KEY, data, 1, {
+      lastModified: 'Mon, 01 Jan 2024 12:00:00 GMT',
+      etag: '"etag-1"',
+    });
+
+    const filePath = path.join(TEST_CACHE_DIR, `${TEST_CACHE_KEY}.json`);
+    const before = await stat(filePath);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await touchCache(TEST_CACHE_KEY, 1);
+
+    const after = await stat(filePath);
+    const cached = await getCacheEntry<{ foo: string }>(TEST_CACHE_KEY, 1);
+
+    expect(after.mtimeMs).toBeGreaterThan(before.mtimeMs);
+    expect(cached?.value).toEqual(data);
+    expect(cached?.etag).toBe('"etag-1"');
   });
 
   afterAll(async () => {

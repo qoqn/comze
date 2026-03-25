@@ -51,6 +51,9 @@ export async function fetchPackage(
     if (cachedEntry?.lastModified) {
       headers['If-Modified-Since'] = cachedEntry.lastModified;
     }
+    if (cachedEntry?.etag) {
+      headers['If-None-Match'] = cachedEntry.etag;
+    }
   }
 
   let data: PackagistResponse;
@@ -66,7 +69,8 @@ export async function fetchPackage(
       data = (await response.json()) as PackagistResponse;
       if (!noCache) {
         const lastModified = response.headers.get('Last-Modified') || undefined;
-        await setCache(cacheKey, data, CACHE_VERSION, { lastModified });
+        const etag = response.headers.get('ETag') || undefined;
+        await setCache(cacheKey, data, CACHE_VERSION, { lastModified, etag });
       }
     } else {
       return null;
