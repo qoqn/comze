@@ -22,7 +22,7 @@ export async function run(options: CLIOptions): Promise<void> {
   }
 
   const minStability: Stability = composer.content['minimum-stability'] ?? 'stable';
-  const preferStable: boolean = composer.content['prefer-stable'] ?? true;
+  const preferStable: boolean = composer.content['prefer-stable'] === true;
 
   const allPackages = {
     ...composer.content.require,
@@ -110,7 +110,12 @@ export async function run(options: CLIOptions): Promise<void> {
 
   if (options.write || options.install) {
     const success = await writeComposerJson(composerPath, selectedUpdates, options.dryRun);
-    if (success && !options.dryRun) {
+    if (!success) {
+      console.error(pc.red('  ✗ Failed to update composer.json'));
+      process.exit(1);
+    }
+
+    if (!options.dryRun) {
       console.log(pc.green('  ✓ Updated composer.json'));
       if (options.write && !options.install) {
         console.log(pc.gray('\n  Run "composer update" to install the new versions\n'));
