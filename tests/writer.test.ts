@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
-import { readFile, writeFile, rm, mkdir } from 'fs/promises';
+import { readFile, writeFile, rm, mkdir, readdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { readComposerJson, writeComposerJson, runComposerUpdate } from '../src/writer';
@@ -204,6 +204,33 @@ describe('writeComposerJson', () => {
     const updates: PackageInfo[] = [];
     const result = await writeComposerJson('/nonexistent/composer.json', updates, false);
     expect(result).toBe(false);
+  });
+
+  test('does not leave temporary files behind after writing', async () => {
+    const content = {
+      require: {
+        'vendor/package': '^1.0',
+      },
+    };
+    await writeFile(TEST_COMPOSER, JSON.stringify(content, null, 4));
+
+    const updates: PackageInfo[] = [
+      {
+        name: 'vendor/package',
+        currentVersion: '^1.0',
+        latestVersion: '1.5.0',
+        diffType: 'minor',
+        releaseTime: new Date().toISOString(),
+        age: '1 d',
+        ageMonths: 0,
+      },
+    ];
+
+    const result = await writeComposerJson(TEST_COMPOSER, updates, false);
+    const files = await readdir(TEST_DIR);
+
+    expect(result).toBe(true);
+    expect(files.some((file) => file.endsWith('.tmp'))).toBe(false);
   });
 });
 

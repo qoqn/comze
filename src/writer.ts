@@ -1,6 +1,7 @@
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, rename, rm, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { spawn } from 'child_process';
+import { basename, dirname, join } from 'path';
 import detectIndent from 'detect-indent';
 import type { PackageInfo, ComposerJson } from './types';
 import { formatNewVersion } from './utils/version';
@@ -58,11 +59,17 @@ export async function writeComposerJson(
     return true;
   }
 
+  const tempPath = join(dirname(path), `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
+
   try {
     const newContent = JSON.stringify(content, null, indent) + '\n';
-    await writeFile(path, newContent, 'utf-8');
+    await writeFile(tempPath, newContent, 'utf-8');
+    await rename(tempPath, path);
     return true;
   } catch {
+    try {
+      await rm(tempPath, { force: true });
+    } catch {}
     return false;
   }
 }
