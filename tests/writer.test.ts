@@ -143,6 +143,37 @@ describe('writeComposerJson', () => {
     expect(newContent.includes('  "require"')).toBe(true);
   });
 
+  test('preserves extra.comze.exclude config', async () => {
+    const content = {
+      require: {
+        'vendor/package': '^1.0',
+      },
+      extra: {
+        comze: {
+          exclude: ['vendor/ignored-package'],
+        },
+      },
+    };
+    await writeFile(TEST_COMPOSER, JSON.stringify(content, null, 4));
+
+    const updates: PackageInfo[] = [
+      {
+        name: 'vendor/package',
+        currentVersion: '^1.0',
+        latestVersion: '1.5.0',
+        diffType: 'minor',
+        releaseTime: new Date().toISOString(),
+        age: '1 d',
+        ageMonths: 0,
+      },
+    ];
+
+    await writeComposerJson(TEST_COMPOSER, updates, false);
+
+    const newContent = JSON.parse(await readFile(TEST_COMPOSER, 'utf-8'));
+    expect(newContent.extra.comze.exclude).toEqual(['vendor/ignored-package']);
+  });
+
   test('dry run does not write file', async () => {
     const content = {
       require: {

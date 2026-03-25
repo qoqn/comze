@@ -47,6 +47,9 @@ comze --dry-run
 
 # Exclude packages
 comze --exclude vendor/package
+
+# Exclude multiple packages
+comze --exclude vendor/package-a,vendor/package-b
 ```
 
 ## Options
@@ -59,8 +62,27 @@ comze --exclude vendor/package
 | `--major`           | Include major updates (default: false)  |
 | `--minor`           | Include minor updates (default: true)   |
 | `--patch`           | Include patch updates (default: true)   |
-| `--exclude <pkgs>`  | Exclude packages (comma-separated)      |
+| `--exclude <pkgs>`  | Exclude packages (comma-separated, merged with `extra.comze.exclude`) |
 | `--dry-run`         | Preview changes without writing         |
+
+## Persistent Excludes
+
+For packages that should always be ignored, store them in `composer.json` under `extra.comze.exclude`:
+
+```json
+{
+  "extra": {
+    "comze": {
+      "exclude": [
+        "vendor/package-a",
+        "vendor/package-b"
+      ]
+    }
+  }
+}
+```
+
+`comze` merges this list with `--exclude`, so the flag remains useful for one-off runs while the file keeps repository-wide defaults.
 
 ## Composer Stability
 

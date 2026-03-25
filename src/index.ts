@@ -7,6 +7,7 @@ import { getDiffType } from './utils/version';
 import { formatAge, getAgeMonths } from './utils/time';
 import { renderHeader, renderTable, renderFooter, renderDeprecated } from './ui/render';
 import { selectPackages } from './interactive';
+import { getComposerExcludeList, mergeExcludeLists, filterComposerPackages } from './config';
 import pkg from '../package.json';
 
 export async function run(options: CLIOptions): Promise<void> {
@@ -28,14 +29,14 @@ export async function run(options: CLIOptions): Promise<void> {
     ...composer.content['require-dev'],
   };
 
-  const filteredPackages: Record<string, string> = {};
-  for (const [name, version] of Object.entries(allPackages)) {
-    if (name === 'php' || name.startsWith('ext-')) continue;
-    if (options.exclude.includes(name)) continue;
-    filteredPackages[name] = version;
-  }
+  const fileExcludes = getComposerExcludeList(composer.content);
+  const excludes = mergeExcludeLists(fileExcludes, options.exclude);
+  const { filteredPackages, ignoredPackages } = filterComposerPackages(allPackages, excludes);
 
   console.log(pc.gray(`  Checking ${Object.keys(filteredPackages).length} packages...`));
+  if (ignoredPackages.length > 0) {
+    console.log(pc.gray(`  Ignoring ${ignoredPackages.length} package${ignoredPackages.length === 1 ? '' : 's'} from exclude list...`));
+  }
   console.log(pc.gray(`  Stability: ${minStability}${preferStable ? ' (prefer-stable)' : ''}\n`));
 
   const projectPhp = allPackages['php'];

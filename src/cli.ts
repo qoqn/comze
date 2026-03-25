@@ -14,7 +14,7 @@ cli
   .option('--major', 'Include major updates', { default: false })
   .option('--minor', 'Include minor updates', { default: true })
   .option('--patch', 'Include patch updates', { default: true })
-  .option('--exclude <packages>', 'Exclude packages (comma-separated)', {
+  .option('--exclude <packages>', 'Exclude packages (comma-separated, merged with composer.json extra.comze.exclude)', {
     default: '',
   })
   .option('--dry-run', 'Run without making changes', { default: false })

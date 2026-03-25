@@ -41,6 +41,16 @@ export interface CLIOptions {
   noCache: boolean;
 }
 
+export interface ComzeConfig {
+  exclude?: string[];
+  [key: string]: unknown;
+}
+
+export interface ComposerExtra {
+  comze?: ComzeConfig;
+  [key: string]: unknown;
+}
+
 /**
  * Composer stability levels in order from least to most stable
  * @see https://getcomposer.org/doc/04-schema.md#minimum-stability
@@ -86,5 +96,6 @@ export interface ComposerJson {
   'require-dev'?: Record<string, string>;
   'minimum-stability'?: Stability;
   'prefer-stable'?: boolean;
+  extra?: ComposerExtra;
   [key: string]: unknown;
 }
