@@ -1,6 +1,6 @@
 {
   "name": "comze",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "A taze-like CLI for updating composer.json dependencies",
   "author": "qoqn",
   "license": "MIT",
@@ -39,13 +39,13 @@
     "@types/bun": "latest",
     "@types/prompts": "^2.4.9",
     "@types/semver": "^7.7.1",
-    "typescript": "^5"
+    "typescript": "^6.0.2"
   },
   "dependencies": {
-    "cac": "^6.7.14",
+    "cac": "^7.0.0",
     "detect-indent": "^7.0.2",
     "picocolors": "^1.1.1",
     "prompts": "^2.4.2",
-    "semver": "^7.7.3"
+    "semver": "^7.7.4"
   }
 }
