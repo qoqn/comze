@@ -254,7 +254,11 @@ export function formatNewVersion(originalConstraint: string, newVersion: string)
   }
 
   if (parsed.type === 'range') {
-    return `^${cleaned}`;
+    const updatedConstraint = originalConstraint.replace(
+      /([><!=]+\s*)v?\d+(?:\.\d+)*(?:-[\w.]+)?/i,
+      `$1${cleaned}`,
+    );
+    return updatedConstraint || originalConstraint;
   }
 
   return `${parsed.prefix}${cleaned}`;

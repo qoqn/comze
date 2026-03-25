@@ -323,8 +323,12 @@ describe('formatNewVersion', () => {
     expect(formatNewVersion('1.*', '2.3.0')).toBe('2.*');
   });
 
-  test('converts range to caret', () => {
-    expect(formatNewVersion('>=1.0 <2.0', '1.5.0')).toBe('^1.5.0');
+  test('preserves range constraint shape', () => {
+    expect(formatNewVersion('>=1.0 <2.0', '1.5.0')).toBe('>=1.5.0 <2.0');
+  });
+
+  test('preserves spaced range operators', () => {
+    expect(formatNewVersion('>= 1.0 < 2.0', '1.5.0')).toBe('>= 1.5.0 < 2.0');
   });
 
   test('updates hyphenated range', () => {
